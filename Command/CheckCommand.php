@@ -25,6 +25,18 @@ class CheckCommand extends Command
                 InputArgument::REQUIRED,
                 'Test Center/postcode (will take first match)'
             )
+            ->addOption(
+                'filter',
+                'f',
+                InputOption::VALUE_OPTIONAL,
+                'A date to compare against, will return only dates less than this'
+            )
+            ->addOption(
+                'mail',
+                'm',
+                InputOption::VALUE_OPTIONAL,
+                'If given, will email the results (if any)'
+            );
         ;
     }
 
@@ -32,6 +44,8 @@ class CheckCommand extends Command
     {
         $licence = $input->getArgument('licence');
         $center  = $input->getArgument('center');
+        $filterDate = $input->getOption('filter');
+        $mail = $input->getOption('mail');
 
         $client = new Client();
         $crawler = $client->request('GET','https://driverpracticaltest.direct.gov.uk/application');
@@ -77,8 +91,52 @@ class CheckCommand extends Command
         $output->writeln('Step 6');
 
         $slots = $crawler->filter('.slotDateTime');
-        foreach($slots as $slot) {
-            $output->writeln($slot->html());
+        $dates = $slots->each(function($node, $i) use($output) {
+            return $node->text();
+        });
+
+        if ($filterDate) {
+            $dates = $this->filterByDate($filterDate, $dates);
         }
+
+
+        foreach($dates as $date) {
+            $output->writeln($date);
+        }
+
+        if (count($dates) && $mail) {
+            $this->mailDates($mail, $dates);
+        }
+    }
+
+    /**
+     * @param string $mail
+     * @param string[] $dates
+     */
+    private function mailDates($mail, $dates)
+    {
+        $message = \Swift_Message::newInstance();
+        $message
+            ->setSubject('Driving test dates found.')
+            ->setFrom(array('noreply@example.com' => 'Driving Test Checker'))
+            ->setTo(array($mail))
+            ->setBody(implode("\r\n", $dates));
+
+        $transport = \Swift_MailTransport::newInstance();
+        $transport->send($message);
+    }
+
+    /**
+     * @param string $filterDate
+     * @param string[] $dates
+     * @return array
+     */
+    protected function filterByDate($filterDate, $dates)
+    {
+        $filterDateTime = new \DateTime($filterDate);
+        $dates = array_filter($dates, function ($date) use ($filterDateTime) {
+            return (new \DateTime($date)) <= $filterDateTime;
+        });
+        return $dates;
     }
 }
