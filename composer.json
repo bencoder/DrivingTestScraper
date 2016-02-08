@@ -6,7 +6,8 @@
     },
     "autoload": {
         "psr-4": {
-            "Bencoder\\DrivingTest\\Command\\": "Command/"
+            "Bencoder\\DrivingTest\\Command\\": "Command/",
+            "Bencoder\\DrivingTest\\Service\\": "Service/"
         }
     }
 }

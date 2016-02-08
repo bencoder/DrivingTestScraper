@@ -1,6 +1,8 @@
 <?php
 namespace Bencoder\DrivingTest\Command;
 
+use Bencoder\DrivingTest\Service\DateFilter;
+use Bencoder\DrivingTest\Service\DateMailer;
 use Goutte\Client;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -78,47 +80,17 @@ class ChangeCommand extends Command
         });
 
         if ($filterDate) {
-            $dates = $this->filterByDate($filterDate, $dates);
+            $filter = new DateFilter();
+            $dates = $filter->filterDates($dates, $filterDate);
         }
-
 
         foreach($dates as $date) {
             $output->writeln($date);
         }
 
         if (count($dates) && $mail) {
-            $this->mailDates($mail, $dates);
+            $mailer = new DateMailer();
+            $mailer->mail($mail,$dates);
         }
-    }
-
-    /**
-     * @param string $mail
-     * @param string[] $dates
-     */
-    private function mailDates($mail, $dates)
-    {
-        $message = \Swift_Message::newInstance();
-        $message
-            ->setSubject('Driving test dates found.')
-            ->setFrom(array('noreply@example.com' => 'Driving Test Checker'))
-            ->setTo(array($mail))
-            ->setBody(implode("\r\n", $dates));
-
-        $transport = \Swift_MailTransport::newInstance();
-        $transport->send($message);
-    }
-
-    /**
-     * @param string $filterDate
-     * @param string[] $dates
-     * @return array
-     */
-    protected function filterByDate($filterDate, $dates)
-    {
-        $filterDateTime = new \DateTime($filterDate);
-        $dates = array_filter($dates, function ($date) use ($filterDateTime) {
-            return (new \DateTime($date)) <= $filterDateTime;
-        });
-        return $dates;
     }
 }
